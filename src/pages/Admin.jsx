@@ -1,0 +1,15 @@
+import React from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { Search, Users, ClipboardList, Phone, Mail } from 'lucide-react';
+
+export default function Admin() {
+    const [bookings, setBookings] = useState([]); const [profiles, setProfiles] = useState([]); const [tab, setTab] = useState('enquiries'); const [search, setSearch] = useState('');
+    async function load() { const [b, p] = await Promise.all([supabase.from('bookings').select('*, profiles(full_name,username,phone,email,starting_location), packages(name,category)').order('created_at', { ascending: false }), supabase.from('profiles').select('*').order('created_at', { ascending: false })]); setBookings(b.data || []); setProfiles(p.data || []) }
+    useEffect(() => { load() }, []);
+    async function status(id, status) { await supabase.from('bookings').update({ status }).eq('id', id); load() }
+    const filtered = bookings.filter(b => JSON.stringify(b).toLowerCase().includes(search.toLowerCase()));
+    return <div className="section admin-page"><div className="admin-head"><div><span className="eyebrow dark">ADMIN</span><h1>Travel enquiries</h1></div><div className="admin-stats"><div><ClipboardList /><b>{bookings.length}</b><small>Enquiries</small></div><div><Users /><b>{profiles.length}</b><small>Customers</small></div></div></div>
+        <div className="admin-tabs"><button className={tab === 'enquiries' ? 'active' : ''} onClick={() => setTab('enquiries')}>Enquiries</button><button className={tab === 'customers' ? 'active' : ''} onClick={() => setTab('customers')}>Customers</button><input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        {tab === 'enquiries' ? <div className="table-wrap"><table><thead><tr><th>Customer</th><th>Package</th><th>Travel</th><th>Contact</th><th>Status</th><th>Created</th></tr></thead><tbody>{filtered.map(b => <tr key={b.id}><td><strong>{b.profiles?.full_name || b.profiles?.username}</strong><small>{b.profiles?.starting_location}</small></td><td>{b.packages?.name || 'Custom'}<small>{b.packages?.category}</small></td><td>{b.travel_date || 'Flexible'}<small>{b.travellers} traveller(s)</small></td><td><div className="contact"><span><Phone size={13} />{b.profiles?.phone || '—'}</span><span><Mail size={13} />{b.profiles?.email || '—'}</span></div></td><td><select value={b.status} onChange={e => status(b.id, e.target.value)}><option>new</option><option>contacted</option><option>confirmed</option><option>cancelled</option></select></td><td>{new Date(b.created_at).toLocaleDateString()}</td></tr>)}</tbody></table></div> : <div className="table-wrap"><table><thead><tr><th>Name</th><th>User ID</th><th>Phone</th><th>Email</th><th>Travellers</th><th>Budget</th></tr></thead><tbody>{profiles.filter(p => JSON.stringify(p).toLowerCase().includes(search.toLowerCase())).map(p => <tr key={p.id}><td>{p.full_name}</td><td>{p.username}</td><td>{p.phone}</td><td>{p.email || '—'}</td><td>{p.travellers}</td><td>{p.budget || '—'}</td></tr>)}</tbody></table></div>}</div>
+}
